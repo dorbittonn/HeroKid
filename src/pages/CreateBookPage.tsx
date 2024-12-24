@@ -61,7 +61,7 @@ export function CreateBookPage() {
 
         {currentStep === 'child-info' && selectedBook && (
           <div className="max-w-md mx-auto">
-            <h2 className="text-2xl font-semibold mb-6">פרטי הילד/ה</h2>
+            <h2 className="text-2xl font-semibold mb-6">פרטי הילד/ה:</h2>
             <ChildInfoForm onSubmit={handleChildInfoSubmit} />
           </div>
         )}
