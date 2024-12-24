@@ -1,4 +1,5 @@
 import type { LeonardoResponse } from '../types';
+import { useState } from 'react';
 
 const LEONARDO_API_KEY = import.meta.env.VITE_LEONARDO_API_KEY;
 const LEONARDO_API_URL = 'https://api.leonardo.ai/v1/generations';
@@ -13,45 +14,45 @@ interface GenerationResponse {
     };
 }
 
-// First, add the upload image function
-async function uploadImage(imagePath: File): Promise<string> {
-    const extension = imagePath.name.split('.').pop();
-    
-    // Get presigned URL
-    const initResponse = await fetch('https://cloud.leonardo.ai/api/rest/v1/init-image', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${LEONARDO_API_KEY}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ extension })
-    });
+// First, add a separate upload function
+export async function uploadReferenceImage(imageFile: File): Promise<string> {
+  const extension = imageFile.name.split('.').pop();
+  
+  // Get presigned URL
+  const initResponse = await fetch('https://cloud.leonardo.ai/api/rest/v1/init-image', {
+      method: 'POST',
+      headers: {
+          'Authorization': `Bearer ${LEONARDO_API_KEY}`,
+          'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ extension })
+  });
 
-    if (!initResponse.ok) {
-        throw new Error(`Failed to initialize image upload: ${initResponse.status}`);
-    }
+  if (!initResponse.ok) {
+      throw new Error('Failed to initialize image upload');
+  }
 
-    const initData = await initResponse.json();
-    const { url: uploadUrl, fields, id: imageId } = initData.uploadInitImage;
+  const initData = await initResponse.json();
+  const { url: uploadUrl, fields, id: imageId } = initData.uploadInitImage;
 
-    // Create form data for upload
-    const formData = new FormData();
-    Object.entries(JSON.parse(fields)).forEach(([key, value]) => {
-        formData.append(key, value as string);
-    });
-    formData.append('file', imagePath);
+  // Upload the image
+  const formData = new FormData();
+  Object.entries(JSON.parse(fields)).forEach(([key, value]) => {
+      formData.append(key, value as string);
+  });
+  formData.append('file', imageFile);
 
-    // Upload the image
-    const uploadResponse = await fetch(uploadUrl, {
-        method: 'POST',
-        body: formData
-    });
+  const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData
+  });
 
-    if (!uploadResponse.ok) {
-        throw new Error('Failed to upload image');
-    }
+  if (!uploadResponse.ok) {
+      throw new Error('Failed to upload image');
+  }
 
-    return imageId;
+  console.log('Image uploaded successfully, ID:', imageId);
+  return imageId;
 }
 
 // Modified generate image function
@@ -170,4 +171,4 @@ export async function checkGenerationStatus(generationId: string): Promise<Leona
   }
 }
 
-export { generateImage, uploadImage };
+export { generateImage };

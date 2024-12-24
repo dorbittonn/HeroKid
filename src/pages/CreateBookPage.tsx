@@ -3,6 +3,8 @@ import type { BookType, ChildInfo } from '../types';
 import { bookTypes } from '../data/bookTypes';
 import { ChildInfoForm } from '../components/ChildInfoForm';
 import { BookPreview } from '../components/BookPreview';
+import { generateImage, uploadReferenceImage } from '../services/leonardo';
+import { motion } from 'framer-motion';
 
 type Step = 'book-type' | 'child-info' | 'generating' | 'preview';
 
@@ -10,29 +12,52 @@ export function CreateBookPage() {
   const [currentStep, setCurrentStep] = useState<Step>('book-type');
   const [selectedBook, setSelectedBook] = useState<BookType | null>(null);
   const [childInfo, setChildInfo] = useState<ChildInfo | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
 
-  const handleChildInfoSubmit = (info: ChildInfo) => {
+  const handleChildInfoSubmit = async (info: ChildInfo) => {
     setChildInfo(info);
     setCurrentStep('generating');
+    setIsGenerating(true);
+
+    try {
+      // Upload the image and generate
+      const referenceImageId = await uploadReferenceImage(info.image);
+      const result = await generateImage(
+        `Create a children's book illustration for a ${info.age} year old ${
+          info.gender === 'זכר' ? 'boy' : 'girl'
+        } named ${info.name} in the style of ${selectedBook!.title}`,
+        referenceImageId
+      );
+      
+      if (result.imageUrl) {
+        setGeneratedImageUrl(result.imageUrl);
+      }
+    } catch (error) {
+      console.error('Failed to generate image:', error);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-center mb-8">יצירת ספר מותאם אישית</h1>
+      <div className="max-w-4xl mx-auto bg-white/20 backdrop-blur-sm rounded-2xl p-8">
+        <h1 className="text-3xl font-bold text-white text-center mb-8">יצירת ספר מותאם אישית</h1>
         
         {currentStep === 'book-type' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-semibold mb-4">בחרו את סוג הספר</h2>
+            <h2 className="text-2xl font-semibold text-white mb-4">בחרו את סוג הספר</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {bookTypes.map((book) => (
-                <div
+                <motion.div
                   key={book.id}
-                  className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                  className={`p-4 backdrop-blur-sm rounded-lg cursor-pointer transition-colors ${
                     selectedBook?.id === book.id
-                      ? 'border-purple-600 bg-purple-50'
-                      : 'border-gray-200 hover:border-purple-300'
+                      ? 'bg-white/30 border-2 border-cyan-400'
+                      : 'bg-white/20 hover:bg-white/25'
                   }`}
+                  whileHover={{ y: -5 }}
                   onClick={() => setSelectedBook(book)}
                 >
                   <img
@@ -43,7 +68,7 @@ export function CreateBookPage() {
                   <h3 className="text-xl font-semibold mb-2">{book.title}</h3>
                   <p className="text-gray-600 mb-2">{book.description}</p>
                   <p className="text-sm text-purple-600">גילאים: {book.ageRange}</p>
-                </div>
+                </motion.div>
               ))}
             </div>
             
@@ -70,9 +95,8 @@ export function CreateBookPage() {
           <div className="space-y-8">
             <h2 className="text-2xl font-semibold text-center">יוצר את הספר שלך...</h2>
             <BookPreview 
-              prompt={`Create a children's book illustration for a ${childInfo.age} year old ${
-                childInfo.gender === 'זכר' ? 'boy' : 'girl'
-              } named ${childInfo.name} in the style of ${selectedBook.title}`} 
+              generatedImageUrl={generatedImageUrl}
+              isLoading={isGenerating}
             />
           </div>
         )}
