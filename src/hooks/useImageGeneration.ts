@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { generateImage, checkGenerationStatus } from '../services/leonardo';
+import { generateImage, uploadReferenceImage, checkGenerationStatus } from '../services/leonardo';
 import type { LeonardoResponse } from '../types';
 
-export function useImageGeneration(prompt: string | null) {
-  const [status, setStatus] = useState<'idle' | 'generating' | 'complete' | 'error'>('idle');
+export function useImageGeneration(prompt: string | null, imageFile: File | null) {
+  const [status, setStatus] = useState<'idle' | 'uploading' | 'generating' | 'complete' | 'error'>('idle');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!prompt) return;
+    if (!prompt || !imageFile) return;
 
     let timeoutId: number;
     let isMounted = true;
@@ -16,7 +16,6 @@ export function useImageGeneration(prompt: string | null) {
     const checkStatus = async (generationId: string) => {
       try {
         const response = await checkGenerationStatus(generationId);
-        
         if (!isMounted) return;
 
         if (response.status === 'complete' && response.imageUrl) {
@@ -37,9 +36,13 @@ export function useImageGeneration(prompt: string | null) {
 
     const startGeneration = async () => {
       try {
+        setStatus('uploading');
+        const referenceImageId = await uploadReferenceImage(imageFile);
+        
         setStatus('generating');
-        const response = await generateImage(prompt);
+        const response = await generateImage(prompt, referenceImageId);
         if (!isMounted) return;
+        
         checkStatus(response.id);
       } catch (err) {
         if (!isMounted) return;
@@ -54,7 +57,7 @@ export function useImageGeneration(prompt: string | null) {
       isMounted = false;
       clearTimeout(timeoutId);
     };
-  }, [prompt]);
+  }, [prompt, imageFile]);
 
   return { status, imageUrl, error };
 }
